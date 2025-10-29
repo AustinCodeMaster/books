@@ -19,6 +19,8 @@ $result = $conn->query($query);
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Books - <?php echo $conf['site_name']; ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="css/book-cards.css" rel="stylesheet">
+    <link href="css/cart-styles.css" rel="stylesheet">
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
@@ -36,7 +38,9 @@ $result = $conn->query($query);
                         <a class="nav-link active" href="books.php">Books</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="cart.php">Cart</a>
+                        <a class="nav-link" href="cart.php">
+                            Cart <span class="cart-count badge bg-danger">0</span>
+                        </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="orders.php">Orders</a>
@@ -66,7 +70,14 @@ $result = $conn->query($query);
                                         <h5 class="card-title"><?php echo htmlspecialchars($row['book_name']); ?></h5>
                                         <p class="card-text">Author: <?php echo htmlspecialchars($row['author']); ?></p>
                                         <p class="card-text">Price: $<?php echo number_format($row['book_price'], 2); ?></p>
-                                        <a href="add_to_cart.php?book_id=<?php echo $row['book_id']; ?>" class="btn btn-primary">Add to Cart</a>
+                                        <button 
+                                            class="btn btn-primary add-to-cart"
+                                            data-book-id="<?php echo $row['book_id']; ?>"
+                                            data-book-name="<?php echo htmlspecialchars($row['book_name']); ?>"
+                                            data-book-price="<?php echo $row['book_price']; ?>"
+                                            data-book-author="<?php echo htmlspecialchars($row['author']); ?>">
+                                            Add to Cart
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -82,5 +93,7 @@ $result = $conn->query($query);
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="js/book-cards.js"></script>
+    <script src="js/cart.js"></script>
 </body>
 </html>
