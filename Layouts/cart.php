@@ -7,6 +7,18 @@ if (!isset($_SESSION['authenticated']) || $_SESSION['authenticated'] !== true) {
     header('Location: ../forms/form.php');
     exit;
 }
+
+// Fetch cart items from database
+$userId = $_SESSION['user_id'];
+$query = "SELECT * FROM cart WHERE user_id = ?";
+$stmt = $conn->prepare($query);
+$stmt->bind_param("i", $userId);
+$stmt->execute();
+$result = $stmt->get_result();
+$cartItems = [];
+while ($row = $result->fetch_assoc()) {
+    $cartItems[] = $row;
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -105,11 +117,11 @@ if (!isset($_SESSION['authenticated']) || $_SESSION['authenticated'] !== true) {
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="js/cart.js"></script>
     <script>
         class CartPage {
             constructor() {
-                this.items = JSON.parse(localStorage.getItem('cartItems')) || [];
+                // Get cart items from PHP
+                this.items = <?php echo json_encode($cartItems); ?>;
                 this.displayCart();
             }
 
@@ -129,24 +141,18 @@ if (!isset($_SESSION['authenticated']) || $_SESSION['authenticated'] !== true) {
                 let grandTotal = 0;
 
                 this.items.forEach((item, index) => {
-                    const total = item.price * item.quantity;
-                    grandTotal += total;
+                    const price = parseFloat(item.item_price);
+                    grandTotal += price;
 
                     const row = document.createElement('tr');
                     row.innerHTML = `
-                        <td>${item.name}</td>
-                        <td>${item.author}</td>
-                        <td>$${item.price.toFixed(2)}</td>
+                        <td>${item.item}</td>
+                        <td>-</td>
+                        <td>$${price.toFixed(2)}</td>
+                        <td>1</td>
+                        <td>$${price.toFixed(2)}</td>
                         <td>
-                            <div class="input-group input-group-sm" style="max-width: 120px;">
-                                <button class="btn btn-outline-secondary" type="button" onclick="cartPage.updateQuantity(${index}, -1)">-</button>
-                                <input type="text" class="form-control text-center" value="${item.quantity}" readonly>
-                                <button class="btn btn-outline-secondary" type="button" onclick="cartPage.updateQuantity(${index}, 1)">+</button>
-                            </div>
-                        </td>
-                        <td>$${total.toFixed(2)}</td>
-                        <td>
-                            <button class="btn btn-danger btn-sm" onclick="cartPage.removeItem(${index})">Remove</button>
+                            <button class="btn btn-danger btn-sm" onclick="cartPage.removeItem(${item.cart_id})">Remove</button>
                         </td>
                     `;
                     cartBody.appendChild(row);
@@ -158,28 +164,55 @@ if (!isset($_SESSION['authenticated']) || $_SESSION['authenticated'] !== true) {
                 document.getElementById('checkout-btn').addEventListener('click', () => this.checkout());
             }
 
-            updateQuantity(index, change) {
-                const item = this.items[index];
-                const newQuantity = item.quantity + change;
-                
-                if (newQuantity > 0) {
-                    item.quantity = newQuantity;
-                    localStorage.setItem('cartItems', JSON.stringify(this.items));
-                    this.displayCart();
-                } else if (newQuantity === 0) {
-                    this.removeItem(index);
+            async removeItem(cartId) {
+                if (!confirm('Are you sure you want to remove this item?')) {
+                    return;
+                }
+
+                try {
+                    const response = await fetch('remove_cart_item.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ cartId: cartId })
+                    });
+
+                    const result = await response.json();
+                    if (result.success) {
+                        location.reload();
+                    } else {
+                        alert('Failed to remove item: ' + result.message);
+                    }
+                } catch (error) {
+                    alert('Error removing item: ' + error.message);
                 }
             }
 
-            removeItem(index) {
-                this.items.splice(index, 1);
-                localStorage.setItem('cartItems', JSON.stringify(this.items));
-                this.displayCart();
-            }
+            async checkout() {
+                if (this.items.length === 0) {
+                    alert('Your cart is empty!');
+                    return;
+                }
 
-            checkout() {
-                // Here you'll add the code to save to your database
-                alert('Checkout functionality coming soon!');
+                try {
+                    const response = await fetch('checkout_handler.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        }
+                    });
+
+                    const result = await response.json();
+                    if (result.success) {
+                        alert('Order placed successfully! Order ID: ' + result.orderId);
+                        window.location.href = 'orders.php';
+                    } else {
+                        alert('Checkout failed: ' + result.message);
+                    }
+                } catch (error) {
+                    alert('Error during checkout: ' + error.message);
+                }
             }
         }
 
